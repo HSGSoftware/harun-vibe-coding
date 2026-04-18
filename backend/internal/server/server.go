@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -12,26 +13,61 @@ import (
 
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/api"
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/config"
+	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/domain/project"
+	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/domain/runner"
+	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/domain/tunnel"
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/storage"
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/ws"
 )
 
 // App bundles the dependencies a running server needs.
 type App struct {
-	Config *config.Config
-	Log    zerolog.Logger
-	DB     *storage.DB
-	Hub    *ws.Hub
+	Config    *config.Config
+	Log       zerolog.Logger
+	DB        *storage.DB
+	Hub       *ws.Hub
+	Projects  *project.Service
+	Runner    *runner.Runner
+	Tunnel    *tunnel.Service
 	StartedAt time.Time
 }
 
 // New constructs the App and all domain services that depend on cfg/db.
 func New(cfg *config.Config, db *storage.DB, log zerolog.Logger) *App {
+	hub := ws.NewHub(log)
+	projRepo := storage.NewProjectsRepo(db)
+	projectsSvc := project.NewService(projRepo, cfg.Paths.ProjectsDir)
+
+	logSink := func(e runner.LogEntry) {
+		raw, _ := json.Marshal(map[string]any{
+			"project_id": e.ProjectID,
+			"line":       e.Line,
+			"stream":     e.Stream,
+			"timestamp":  e.Timestamp.UnixMilli(),
+		})
+		hub.PublishPayload("events", "events.project_log", json.RawMessage(raw))
+	}
+	statSink := func(id, status string, port int) {
+		raw, _ := json.Marshal(map[string]any{
+			"project_id": id,
+			"status":     status,
+			"port":       port,
+		})
+		hub.PublishPayload("events", "events.project_status", json.RawMessage(raw))
+	}
+	tunReady := func(id, url string) {
+		raw, _ := json.Marshal(map[string]any{"project_id": id, "url": url})
+		hub.PublishPayload("events", "events.tunnel_ready", json.RawMessage(raw))
+	}
+
 	return &App{
 		Config:    cfg,
 		Log:       log,
 		DB:        db,
-		Hub:       ws.NewHub(log),
+		Hub:       hub,
+		Projects:  projectsSvc,
+		Runner:    runner.New(logSink, statSink),
+		Tunnel:    tunnel.NewService(tunReady),
 		StartedAt: time.Now(),
 	}
 }
@@ -64,6 +100,9 @@ func (a *App) Router() *gin.Engine {
 		Log:       a.Log,
 		DB:        a.DB,
 		Hub:       a.Hub,
+		Projects:  a.Projects,
+		Runner:    a.Runner,
+		Tunnel:    a.Tunnel,
 		StartedAt: a.StartedAt,
 	}
 	api.RegisterSystem(apiGroup, deps)

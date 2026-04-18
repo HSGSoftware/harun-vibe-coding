@@ -9,6 +9,9 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/config"
+	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/domain/project"
+	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/domain/runner"
+	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/domain/tunnel"
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/storage"
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/ws"
 )
@@ -19,5 +22,8 @@ type Deps struct {
 	Log       zerolog.Logger
 	DB        *storage.DB
 	Hub       *ws.Hub
+	Projects  *project.Service
+	Runner    *runner.Runner
+	Tunnel    *tunnel.Service
 	StartedAt time.Time
 }
