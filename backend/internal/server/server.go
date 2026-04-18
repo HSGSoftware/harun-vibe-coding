@@ -15,6 +15,7 @@ import (
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/config"
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/domain/project"
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/domain/runner"
+	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/domain/terminal"
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/domain/tunnel"
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/storage"
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/ws"
@@ -29,6 +30,7 @@ type App struct {
 	Projects  *project.Service
 	Runner    *runner.Runner
 	Tunnel    *tunnel.Service
+	Terminals *terminal.Manager
 	StartedAt time.Time
 }
 
@@ -59,6 +61,18 @@ func New(cfg *config.Config, db *storage.DB, log zerolog.Logger) *App {
 		raw, _ := json.Marshal(map[string]any{"project_id": id, "url": url})
 		hub.PublishPayload("events", "events.tunnel_ready", json.RawMessage(raw))
 	}
+	termOut := func(sid string, data []byte) {
+		hub.PublishPayload("terminal", "terminal.data", map[string]any{
+			"terminal_id": sid,
+			"data":        string(data),
+		})
+	}
+	termExit := func(sid string, code int) {
+		hub.PublishPayload("terminal", "terminal.exit", map[string]any{
+			"terminal_id": sid,
+			"exit_code":   code,
+		})
+	}
 
 	return &App{
 		Config:    cfg,
@@ -68,6 +82,7 @@ func New(cfg *config.Config, db *storage.DB, log zerolog.Logger) *App {
 		Projects:  projectsSvc,
 		Runner:    runner.New(logSink, statSink),
 		Tunnel:    tunnel.NewService(tunReady),
+		Terminals: terminal.NewManager(termOut, termExit),
 		StartedAt: time.Now(),
 	}
 }
@@ -103,6 +118,7 @@ func (a *App) Router() *gin.Engine {
 		Projects:  a.Projects,
 		Runner:    a.Runner,
 		Tunnel:    a.Tunnel,
+		Terminals: a.Terminals,
 		StartedAt: a.StartedAt,
 	}
 	api.RegisterSystem(apiGroup, deps)

@@ -11,6 +11,7 @@ import (
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/config"
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/domain/project"
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/domain/runner"
+	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/domain/terminal"
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/domain/tunnel"
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/storage"
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/ws"
@@ -25,5 +26,6 @@ type Deps struct {
 	Projects  *project.Service
 	Runner    *runner.Runner
 	Tunnel    *tunnel.Service
+	Terminals *terminal.Manager
 	StartedAt time.Time
 }
