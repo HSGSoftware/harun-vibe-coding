@@ -95,12 +95,101 @@ func RegisterAI(r *gin.RouterGroup, d Deps) {
 	aig.POST("/permissions", stub)
 	aig.DELETE("/permissions/:id", stub)
 	aig.POST("/permissions/reset", stub)
-	aig.GET("/usage", stub)
-	aig.GET("/context-files/:conversation_id", stub)
-	aig.POST("/context-files/:conversation_id", stub)
-	aig.GET("/prompts", stub)
-	aig.POST("/prompts", stub)
-	aig.DELETE("/prompts/:id", stub)
+	aig.GET("/usage", func(c *gin.Context) {
+		rows, err := storage.NewUsageRepo(d.DB).List(c.Request.Context(), c.Query("project_id"), c.Query("from"), c.Query("to"))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		var total float64
+		for _, r := range rows {
+			total += r.CostUSD
+		}
+		c.JSON(http.StatusOK, gin.H{"daily": rows, "total": total})
+	})
+	aig.GET("/context-files/:conversation_id", func(c *gin.Context) {
+		cid := c.Param("conversation_id")
+		rows, err := d.DB.QueryContext(c.Request.Context(), `SELECT path, included FROM context_files WHERE conversation_id = ?`, cid)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		defer rows.Close()
+		type entry struct {
+			Path     string `json:"path"`
+			Included bool   `json:"included"`
+		}
+		var out []entry
+		for rows.Next() {
+			var e entry
+			var inc int
+			if err := rows.Scan(&e.Path, &inc); err == nil {
+				e.Included = inc != 0
+				out = append(out, e)
+			}
+		}
+		c.JSON(http.StatusOK, gin.H{"files": out})
+	})
+	aig.POST("/context-files/:conversation_id", func(c *gin.Context) {
+		var body struct {
+			Path     string `json:"path"`
+			Included bool   `json:"included"`
+		}
+		if err := c.BindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "bad_body"})
+			return
+		}
+		incInt := 0
+		if body.Included {
+			incInt = 1
+		}
+		_, err := d.DB.ExecContext(c.Request.Context(), `
+			INSERT INTO context_files(conversation_id, path, included) VALUES (?,?,?)
+			ON CONFLICT(conversation_id, path) DO UPDATE SET included = excluded.included
+		`, c.Param("conversation_id"), body.Path, incInt)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"ok": true})
+	})
+	promptsRepo := storage.NewPromptsRepo(d.DB)
+	aig.GET("/prompts", func(c *gin.Context) {
+		list, err := promptsRepo.List(c.Request.Context())
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"prompts": list})
+	})
+	aig.POST("/prompts", func(c *gin.Context) {
+		var body struct {
+			Title   string `json:"title"`
+			Content string `json:"content"`
+			Tags    string `json:"tags"`
+		}
+		if err := c.BindJSON(&body); err != nil || body.Title == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "bad_body"})
+			return
+		}
+		p := storage.Prompt{
+			ID:        uuid.NewString(),
+			Title:     body.Title,
+			Content:   body.Content,
+			Tags:      body.Tags,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
+		if err := promptsRepo.Insert(c.Request.Context(), p); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, p)
+	})
+	aig.DELETE("/prompts/:id", func(c *gin.Context) {
+		_ = promptsRepo.Delete(c.Request.Context(), c.Param("id"))
+		c.JSON(http.StatusOK, gin.H{"ok": true})
+	})
 	aig.POST("/analyze-error", stub)
 	aig.POST("/explain-code", stub)
 	aig.POST("/generate-commit-message", stub)
