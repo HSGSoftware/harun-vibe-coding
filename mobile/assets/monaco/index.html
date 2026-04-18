@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <title>Monaco</title>
+  <style>
+    html, body, #editor { margin: 0; padding: 0; width: 100%; height: 100%; background: #0F1115; }
+    body { overflow: hidden; -webkit-text-size-adjust: 100%; }
+  </style>
+</head>
+<body>
+  <div id="editor"></div>
+
+  <script>
+    // The Flutter build drops the Monaco distribution under /vs/ next to this file.
+    // This loader assumes `vs/loader.js` and `vs/editor/editor.main.js` are present.
+    // Until assets are in place the bridge still fires onReady with an empty editor.
+    window.hvc = window.hvc || {};
+    let editor = null;
+
+    function post(handler, args) {
+      try {
+        if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
+          return window.flutter_inappwebview.callHandler(handler, ...args);
+        }
+      } catch (_) { /* swallow */ }
+    }
+
+    function initEditor(value, language) {
+      if (!window.monaco) {
+        document.getElementById('editor').innerText = value || '';
+        post('onReady', []);
+        return;
+      }
+      editor = monaco.editor.create(document.getElementById('editor'), {
+        value: value || '',
+        language: language || 'plaintext',
+        theme: 'vs-dark',
+        fontSize: 13,
+        fontFamily: 'JetBrains Mono, Menlo, Consolas, monospace',
+        automaticLayout: true,
+        tabSize: 2,
+        minimap: { enabled: false },
+        scrollBeyondLastLine: false,
+      });
+      editor.onDidChangeModelContent(function () {
+        post('onChange', [editor.getValue()]);
+      });
+      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function () {
+        post('onSave', []);
+      });
+      post('onReady', []);
+    }
+
+    window.hvc.setContent = function (value, language) {
+      if (!editor) { initEditor(value, language); return; }
+      editor.getModel()?.setValue(value || '');
+      if (language) monaco.editor.setModelLanguage(editor.getModel(), language);
+    };
+    window.hvc.setLanguage = function (language) {
+      if (editor) monaco.editor.setModelLanguage(editor.getModel(), language);
+    };
+    window.hvc.setTheme = function (theme) {
+      if (monaco) monaco.editor.setTheme(theme);
+    };
+    window.hvc.setReadOnly = function (ro) {
+      if (editor) editor.updateOptions({ readOnly: !!ro });
+    };
+
+    // Try to load Monaco from the vendored distribution; fall back to textarea.
+    const script = document.createElement('script');
+    script.src = 'vs/loader.js';
+    script.onload = function () {
+      require.config({ paths: { vs: 'vs' } });
+      require(['vs/editor/editor.main'], function () {
+        if (!editor) initEditor('', 'plaintext');
+      });
+    };
+    script.onerror = function () { initEditor('', 'plaintext'); };
+    document.body.appendChild(script);
+  </script>
+</body>
+</html>
