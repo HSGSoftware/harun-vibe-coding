@@ -1,13 +1,37 @@
 package api
 
-import "github.com/gin-gonic/gin"
+import (
+	"net/http"
 
-// RegisterNotifications mounts /notifications/* endpoints. Faz 8 fills these in.
+	"github.com/gin-gonic/gin"
+
+	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/storage"
+)
+
+// RegisterNotifications mounts /notifications/*.
 func RegisterNotifications(r *gin.RouterGroup, d Deps) {
+	repo := storage.NewNotificationsRepo(d.DB)
 	g := r.Group("/notifications")
-	g.GET("", stub)
-	g.POST("/:id/read", stub)
-	g.POST("/read-all", stub)
-	g.DELETE("/:id", stub)
+
+	g.GET("", func(c *gin.Context) {
+		items, err := repo.List(c.Request.Context(), c.Query("unread") == "1")
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"notifications": items})
+	})
+	g.POST("/:id/read", func(c *gin.Context) {
+		_ = repo.MarkRead(c.Request.Context(), c.Param("id"))
+		c.JSON(http.StatusOK, gin.H{"ok": true})
+	})
+	g.POST("/read-all", func(c *gin.Context) {
+		_ = repo.MarkAllRead(c.Request.Context())
+		c.JSON(http.StatusOK, gin.H{"ok": true})
+	})
+	g.DELETE("/:id", func(c *gin.Context) {
+		_ = repo.Delete(c.Request.Context(), c.Param("id"))
+		c.JSON(http.StatusOK, gin.H{"ok": true})
+	})
 	g.POST("/settings", stub)
 }
