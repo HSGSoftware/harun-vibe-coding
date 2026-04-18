@@ -9,6 +9,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/config"
+	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/domain/backup"
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/domain/project"
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/domain/runner"
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/domain/terminal"
@@ -27,5 +28,6 @@ type Deps struct {
 	Runner    *runner.Runner
 	Tunnel    *tunnel.Service
 	Terminals *terminal.Manager
+	Backups   *backup.Service
 	StartedAt time.Time
 }

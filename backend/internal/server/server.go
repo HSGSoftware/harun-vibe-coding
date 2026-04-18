@@ -13,6 +13,7 @@ import (
 
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/api"
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/config"
+	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/domain/backup"
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/domain/project"
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/domain/runner"
 	"github.com/hsgsoftware/harun-vibe-coding/backend/internal/domain/terminal"
@@ -31,6 +32,7 @@ type App struct {
 	Runner    *runner.Runner
 	Tunnel    *tunnel.Service
 	Terminals *terminal.Manager
+	Backups   *backup.Service
 	StartedAt time.Time
 }
 
@@ -74,6 +76,9 @@ func New(cfg *config.Config, db *storage.DB, log zerolog.Logger) *App {
 		})
 	}
 
+	backupRepo := storage.NewBackupsRepo(db)
+	backupSvc := backup.NewService(backupRepo, cfg.Paths.BackupsDir)
+
 	return &App{
 		Config:    cfg,
 		Log:       log,
@@ -83,6 +88,7 @@ func New(cfg *config.Config, db *storage.DB, log zerolog.Logger) *App {
 		Runner:    runner.New(logSink, statSink),
 		Tunnel:    tunnel.NewService(tunReady),
 		Terminals: terminal.NewManager(termOut, termExit),
+		Backups:   backupSvc,
 		StartedAt: time.Now(),
 	}
 }
@@ -119,6 +125,7 @@ func (a *App) Router() *gin.Engine {
 		Runner:    a.Runner,
 		Tunnel:    a.Tunnel,
 		Terminals: a.Terminals,
+		Backups:   a.Backups,
 		StartedAt: a.StartedAt,
 	}
 	api.RegisterSystem(apiGroup, deps)
