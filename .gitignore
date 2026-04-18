@@ -1,0 +1,42 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+coverage/
+*.lock
+.flutter-plugins
+.flutter-plugins-dependencies
+*.g.dart
+*.freezed.dart
+*.gr.dart
+*.mocks.dart
+
+# Android
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/app/google-services.json
+mobile/android/captures/
+mobile/android/.idea/
+mobile/android/key.properties
+mobile/android/*.iml
+
+# iOS (unused but guard)
+ios/
+
+# Go
+backend/vendor/
+*.test
+*.out
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Secrets (none expected — CLI auth lives in ~/.claude, ~/.gemini)
+*.env
+.env.*
+!.env.example
