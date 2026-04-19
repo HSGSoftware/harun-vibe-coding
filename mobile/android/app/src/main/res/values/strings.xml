@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Harun Vibe Coding</string>
+    <string name="service_title">Harun Vibe Coding</string>
+    <string name="service_text_idle">Sunucu hazır</string>
+    <string name="service_text_running">%1$d proje çalışıyor</string>
+    <string name="service_text_starting">Sunucu başlatılıyor</string>
+    <string name="channel_service_name">Dev Manager Servisi</string>
+    <string name="channel_ai_response_name">AI Cevapları</string>
+    <string name="channel_ai_permission_name">AI İzin İstekleri</string>
+    <string name="channel_server_error_name">Sunucu Hataları</string>
+    <string name="channel_tunnel_name">Tunnel Durumu</string>
+    <string name="channel_backup_name">Yedekleme</string>
+    <string name="channel_system_name">Sistem Uyarıları</string>
+</resources>
